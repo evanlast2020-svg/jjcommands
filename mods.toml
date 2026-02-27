@@ -1,0 +1,30 @@
+package com.jjcommands;
+
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraftforge.event.entity.player.PlayerEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+
+public class JJPlayerJoinHandler {
+
+    @SubscribeEvent
+    public static void onPlayerLogin(PlayerEvent.PlayerLoggedInEvent event) {
+        if (!(event.getEntity() instanceof ServerPlayer player)) return;
+
+        CompoundTag data = player.getPersistentData();
+        if (data.getBoolean("jj_technique_assigned")) return;
+
+        data.putBoolean("jj_technique_assigned", true);
+
+        JJTechniques.Technique technique = JJTechniqueApplier.rollWeighted();
+        boolean ok = JJTechniqueApplier.applyTechnique(player, technique);
+
+        if (ok) {
+            String color = JJTechniques.color(technique.tier());
+            player.sendSystemMessage(Component.literal("§8§l[§6§lJujutsuCraft§8§l] §r§fWelcome, §e" + player.getName().getString() + "§f!"));
+            player.sendSystemMessage(Component.literal("§fYour cursed technique has been determined..."));
+            player.sendSystemMessage(Component.literal("§8[§6Technique§8] " + color + "[" + technique.tier() + "] " + technique.name() + "§f!"));
+        }
+    }
+}

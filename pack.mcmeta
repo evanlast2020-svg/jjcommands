@@ -1,0 +1,126 @@
+package com.jjcommands;
+
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.network.chat.Component;
+import net.minecraftforge.common.capabilities.Capability;
+import net.minecraftforge.common.capabilities.CapabilityManager;
+import net.minecraftforge.common.capabilities.CapabilityToken;
+
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.util.Random;
+
+public class JJTechniqueApplier {
+
+    private static final Random RANDOM = new Random();
+
+    // Cache for reflection
+    private static Class<?> playerVariablesClass = null;
+    private static Capability<?> playerVariablesCapability = null;
+    private static Method syncMethod = null;
+    private static boolean initDone = false;
+    private static boolean initSuccess = false;
+
+    private static boolean init() {
+        if (initDone) return initSuccess;
+        initDone = true;
+        try {
+            // Load JujutsuCraft's PlayerVariables class
+            playerVariablesClass = Class.forName("net.mcreator.jujutsucraft.network.JujutsucraftModVariables$PlayerVariables");
+
+            // Get the PLAYER_VARIABLES_CAPABILITY field from JujutsucraftModVariables
+            Class<?> modVarsClass = Class.forName("net.mcreator.jujutsucraft.network.JujutsucraftModVariables");
+            Field capField = modVarsClass.getDeclaredField("PLAYER_VARIABLES_CAPABILITY");
+            capField.setAccessible(true);
+            playerVariablesCapability = (Capability<?>) capField.get(null);
+
+            // Get syncPlayerVariables method
+            syncMethod = playerVariablesClass.getDeclaredMethod("syncPlayerVariables", net.minecraft.world.entity.Entity.class);
+            syncMethod.setAccessible(true);
+
+            initSuccess = true;
+        } catch (Exception e) {
+            initSuccess = false;
+        }
+        return initSuccess;
+    }
+
+    public static boolean applyTechnique(ServerPlayer player, JJTechniques.Technique technique) {
+        if (!init()) return false;
+
+        try {
+            // Get the capability instance for this player
+            var lazyOpt = player.getCapability((Capability<Object>) playerVariablesCapability);
+            final boolean[] success = {false};
+
+            lazyOpt.ifPresent(vars -> {
+                try {
+                    // Set PlayerCurseTechnique
+                    Field curseTechField = playerVariablesClass.getDeclaredField("PlayerCurseTechnique");
+                    curseTechField.setAccessible(true);
+                    curseTechField.setDouble(vars, technique.id());
+
+                    // Set PlayerCurseTechnique2
+                    Field curseTech2Field = playerVariablesClass.getDeclaredField("PlayerCurseTechnique2");
+                    curseTech2Field.setAccessible(true);
+                    curseTech2Field.setDouble(vars, technique.id());
+
+                    // Set PlayerSelectCurseTechnique
+                    Field selectTechField = playerVariablesClass.getDeclaredField("PlayerSelectCurseTechnique");
+                    selectTechField.setAccessible(true);
+                    selectTechField.setDouble(vars, technique.id());
+
+                    // Set PlayerSelectCurseTechniqueName
+                    Field nameField = playerVariablesClass.getDeclaredField("PlayerSelectCurseTechniqueName");
+                    nameField.setAccessible(true);
+                    nameField.set(vars, technique.name());
+
+                    // Set PlayerCursePower
+                    Field powerField = playerVariablesClass.getDeclaredField("PlayerCursePower");
+                    powerField.setAccessible(true);
+                    powerField.setDouble(vars, technique.power());
+
+                    // Set PlayerCursePowerMAX
+                    Field powerMaxField = playerVariablesClass.getDeclaredField("PlayerCursePowerMAX");
+                    powerMaxField.setAccessible(true);
+                    powerMaxField.setDouble(vars, technique.powerMax());
+
+                    // Set PlayerCursePowerFormer
+                    Field powerFormerField = playerVariablesClass.getDeclaredField("PlayerCursePowerFormer");
+                    powerFormerField.setAccessible(true);
+                    powerFormerField.setDouble(vars, technique.powerFormer());
+
+                    // Sync to client — THIS IS THE KEY STEP
+                    syncMethod.invoke(vars, player);
+
+                    success[0] = true;
+                } catch (Exception e) {
+                    // ignore
+                }
+            });
+
+            return success[0];
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public static JJTechniques.Technique rollWeighted() {
+        double rand = RANDOM.nextDouble() * 100;
+        String tier;
+        if (rand < 5)       tier = "S";
+        else if (rand < 20) tier = "A";
+        else if (rand < 50) tier = "B";
+        else                tier = "C";
+
+        var pool = JJTechniques.getTier(tier);
+        return pool.get(RANDOM.nextInt(pool.size()));
+    }
+
+    public static void sendTechniqueMessage(ServerPlayer player, JJTechniques.Technique technique, String context) {
+        String color = JJTechniques.color(technique.tier());
+        player.sendSystemMessage(Component.literal(
+            "§8[§6" + context + "§8] " + color + "[" + technique.tier() + "] " + technique.name() + "§f!"
+        ));
+    }
+}
