@@ -12,17 +12,10 @@ java {
 
 minecraft {
     mappings channel: 'official', version: '1.20.1'
-
     runs {
         server {
             workingDirectory project.file('run')
-            property 'forge.logging.markers', 'REGISTRIES'
-            property 'forge.logging.console.level', 'debug'
-            mods {
-                jjcommands {
-                    source sourceSets.main
-                }
-            }
+            mods { jjcommands { source sourceSets.main } }
         }
     }
 }
@@ -33,20 +26,16 @@ repositories {
 
 dependencies {
     minecraft 'net.minecraftforge:forge:1.20.1-47.2.0'
-
-    // JujutsuCraft as compile-only dependency for reflection
-    compileOnly files('libs/JujutsuCraft-ver48-forge-1.20.1.jar')
+    compileOnly files('libs/JujutsuCraft.jar')
 }
 
 jar {
     manifest {
         attributes([
-            'Specification-Title'     : 'jjcommands',
-            'Specification-Vendor'    : 'jjcommands',
-            'Specification-Version'   : '1',
-            'Implementation-Title'    : project.name,
-            'Implementation-Version'  : project.jar.archiveVersion,
-            'Implementation-Vendor'   : 'jjcommands',
+            'Specification-Title': 'jjcommands',
+            'Specification-Version': '1',
+            'Implementation-Title': project.name,
+            'Implementation-Version': project.jar.archiveVersion,
         ])
     }
 }
